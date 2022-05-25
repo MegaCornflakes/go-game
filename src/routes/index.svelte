@@ -1,5 +1,71 @@
 <script lang="ts">
-	let gameState = Array(9).fill(Array(9).fill(-1))
+	let gameState: number[][] = Array(9)
+		.fill(undefined)
+		.map(() => Array(9).fill(-1))
+	let lastState = [...gameState]
+	let turn = 0
+
+	function placePoint(x: number, y: number) {
+		if (gameState[x][y] !== -1) {
+			return
+		}
+
+		let futureState = JSON.parse(JSON.stringify(gameState))
+		futureState[x][y] = turn % 2
+		futureState = validateState(futureState, x, y)
+		gameState = futureState
+		turn++
+	}
+
+	function validateState(state: number[][], x: number, y: number): number[][] {
+		// Check self-capturing move
+		if (validateGroup(state, x, y, turn % 2).length !== 0) {
+			console.log('Self-capturing move')
+			return gameState
+		}
+
+		console.log('No errors here!')
+		return state
+	}
+
+	function validateGroup(
+		state: number[][],
+		x: number,
+		y: number,
+		color: number,
+		points: Point[] = []
+	): Point[] {
+		if (state[x][y] === -1) return []
+
+		points = [...points, { x, y }]
+		for (let i = 0; i < 4; i++) {
+			const newX = [-1, 0, 1, 0][i] + x
+			const newY = [0, 1, 0, -1][i] + y
+			if (
+				newX >= 0 &&
+				newX < state.length &&
+				newY >= 0 &&
+				newY < state[0].length
+			) {
+				if (
+					state[newX][newY] !== (color + 1) % 2 &&
+					!points.find((point) => point.x === newX && point.y === newY)
+				) {
+					const newPoints = validateGroup(state, newX, newY, color, points)
+					if (newPoints.length === 0) return []
+					points = newPoints
+				}
+			}
+		}
+
+		console.log('Done checking group')
+		return points
+	}
+
+	interface Point {
+		x: number
+		y: number
+	}
 
 	function pointClasses(row: number, col: number) {
 		let type = ''
@@ -39,9 +105,22 @@
 	<div class="board">
 		{#each gameState as row, rowIndex}
 			{#each row as point, pointIndex}
-				<div class="point {pointClasses(rowIndex, pointIndex)}">
-					{rowIndex * 9 + pointIndex}
-				</div>
+				{#if gameState[rowIndex][pointIndex] === -1}
+					<div
+						class="point {pointClasses(rowIndex, pointIndex)}"
+						on:click={() => {
+							placePoint(rowIndex, pointIndex)
+						}}
+					/>
+				{:else}
+					<div class="point {pointClasses(rowIndex, pointIndex)}">
+						<div
+							class="stone {gameState[rowIndex][pointIndex] === 0
+								? 'black'
+								: 'white'}"
+						/>
+					</div>
+				{/if}
 			{/each}
 		{/each}
 	</div>
@@ -69,6 +148,21 @@
 		display: flex;
 		justify-content: center;
 		align-items: center;
+		padding: 16px;
+	}
+
+	.stone {
+		width: 100%;
+		height: 100%;
+		border-radius: 50%;
+	}
+
+	.stone.black {
+		background-color: #323231;
+	}
+
+	.stone.white {
+		background-color: #ededed;
 	}
 
 	.middle {
